@@ -1,0 +1,92 @@
+---
+title: "Practical Machine Learning Assignment"
+author: "Revathi"
+date: "January 8, 2016"
+output: html_document
+---
+Overview
+=================
+
+**The goal of the project is to predict the manner in which they did the exercise based on the "classe" variable in the training set. The prediction results using Random Forest algorithm provides the highest accuracy result. The final prediction model will be used predict 20 different test cases.**
+
+**Data Preparation**
+
+**1. Loading the necessary libraries** 
+
+```{r, message=FALSE, warning=FALSE}
+#Load the relevant library
+library(caret)
+library(kernlab)
+library(ggplot2)
+library(rpart)
+library(randomForest)
+library(rpart.plot)
+library(RColorBrewer)
+library(rattle)
+```
+
+**2. Load the dataset, subset the training data to training set and validation set using the 60:40 approach.** 
+```{r, message=FALSE}
+#Load the data
+pml_testing <- read.table("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv",header=TRUE, sep=",", na.strings=c("NA","#DIV/0!", ""))
+pml_training <- read.table("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv",header=TRUE, sep=",", na.strings=c("NA","#DIV/0!", ""))
+
+#Convert the NAs to 0
+pml_testing[is.na(pml_testing)] <- 0
+pml_training[is.na(pml_training)] <- 0
+
+#Split the training dataset to training and validation data (60:40)
+trainSubset<-createDataPartition(y=pml_training$classe, p=0.6, list=FALSE)
+traindt<- pml_training[trainSubset,]
+validatedt<- pml_training[-trainSubset,]
+
+```
+
+**3. Build the model using Random Forest and Decision Tree, the outcome is compared before deciding on the final model approach**
+
+```{r,message=FALSE}
+#Perform different ML algorithm on the dataset to get the optimum results
+#1. Decision tree
+ModelDT <- rpart(classe ~ ., data=traindt[,7:160], method="class")
+PredictDT <- predict(ModelDT, validatedt, type = "class")
+
+#2. Random Forest
+ModelRF <- randomForest(classe ~. , data=traindt[,7:160], method="class")
+PredictRF <- predict(ModelRF, validatedt, type = "class")
+
+```
+**4. Upon comparing the accuracy level of both the models, we conclude that Random Forest yields the highest accuracy and a low out of sample error value. Therefore the final prediction will be done based on the ModelRF using RandomForest.** 
+
+**Model using Decision Tree**
+```{r, echo=FALSE}
+CMDT<-confusionMatrix(PredictDT, validatedt$classe)
+tableDT <-as.data.frame(CMDT$table)
+CMDT
+out_sample_errorCDMT<- 1-CMDT$overall[1]
+qplot(Reference,Freq, color=Prediction,data=tableDT,xlab="Class",ylab = "Count", main="Prediction with Decision Tree")
+
+```
+
+Prediction using the Decision Tree model gives accuracy of **`r CMDT$overall[1]`** and out of sample error of **`r out_sample_errorCDMT`**
+
+**Model using Random Forest**
+
+```{r, echo=FALSE}
+CMRF<-confusionMatrix(PredictRF, validatedt$classe)
+tableRF <-as.data.frame(CMRF$table)
+CMRF
+out_sample_errorCMRF<- 1-CMRF$overall[1]
+qplot(Reference,Freq, color=Prediction,data=tableRF,xlab="Class",ylab = "Count",main="Prediction with Random Forest")
+
+```
+
+Prediction using the Random Forest model gives accuracy of **`r CMRF$overall[1]`** and out of sample error of **`r out_sample_errorCMRF`**
+
+**The prediction result of the 20 test cases available in the test data**
+```{r}
+PredictResult<- predict(ModelRF, newdata=pml_testing, type = "class")
+PredictResult
+```
+
+
+
